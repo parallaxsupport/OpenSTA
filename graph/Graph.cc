@@ -655,7 +655,7 @@ Graph::makePrevPaths(Vertex *vertex,
 }
 
 PathVertexRep *
-Graph::prevPaths(Vertex *vertex) const
+Graph::prevPaths(Vertex *vertex)
 {
   return prev_paths_.pointer(vertex->prevPaths());
 }

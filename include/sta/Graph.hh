@@ -112,7 +112,7 @@ public:
   size_t requiredCount() const { return requireds_.size(); }
   PathVertexRep *makePrevPaths(Vertex *vertex,
 			       uint32_t count);
-  PathVertexRep *prevPaths(Vertex *vertex) const;
+  PathVertexRep *prevPaths(Vertex *vertex);
   void clearPrevPaths();
   // Reported slew are the same as those in the liberty tables.
   //  reported_slews = measured_slews / slew_derate_from_library
