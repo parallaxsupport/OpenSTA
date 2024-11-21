@@ -303,6 +303,7 @@
 1060 Genclks.cc:275            no master clock found for generated clock %s.
 1062 Genclks.cc:939            generated clock %s source pin %s missing paths from master clock %s.
 1100 Power.cc:556              unknown cudd constant
+1101 Power.cc:651              poor convergence of propagated activities for power estimation after %d passes
 1110 Liberty.cc:763            cell %s/%s port %s not found in cell %s/%s.
 1111 Liberty.cc:789            cell %s/%s %s -> %s timing group %s not found in cell %s/%s.
 1112 Liberty.cc:808            Liberty cell %s/%s for corner %s/%s not found.

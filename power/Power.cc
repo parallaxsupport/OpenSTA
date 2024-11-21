@@ -633,22 +633,28 @@ Power::ensureActivities()
       bfs.visit(levelize_->maxLevel(), &visitor);
       // Propagate activiities through registers.
       InstanceSet regs = std::move(visitor.visitedRegs());
-      int pass = 1;
-      while (!regs.empty() && pass < max_activity_passes_) {
-        visitor.init();
-        InstanceSet::Iterator reg_iter(regs);
-	while (reg_iter.hasNext()) {
-	  const Instance *reg = reg_iter.next();
-	  // Propagate activiities across register D->Q.
-	  seedRegOutputActivities(reg, bfs);
-	}
-	// Propagate register output activities through
-	// combinational logic.
-	bfs.visit(levelize_->maxLevel(), &visitor);
-        regs = std::move(visitor.visitedRegs());
-        debugPrint(debug_, "power_activity", 1, "Pass %d change %.2f",
-                   pass, visitor.maxChange());
-        pass++;
+      if (!regs.empty()) {
+        int pass = 1;
+        while (!regs.empty() && pass < max_activity_passes_) {
+          visitor.init();
+          InstanceSet::Iterator reg_iter(regs);
+          while (reg_iter.hasNext()) {
+            const Instance *reg = reg_iter.next();
+            // Propagate activiities across register D->Q.
+            seedRegOutputActivities(reg, bfs);
+          }
+          // Propagate register output activities through
+          // combinational logic.
+          bfs.visit(levelize_->maxLevel(), &visitor);
+          regs = std::move(visitor.visitedRegs());
+          debugPrint(debug_, "power_activity", 1, "Pass %d change %.2f",
+                     pass, visitor.maxChange());
+          pass++;
+        }
+        if (visitor.maxChange() > 0.20) {
+          report_->warn(1101, "poor convergence of propagated activities for power estimation after %d passes",
+                        max_activity_passes_);
+        }
       }
       stats.report("Find power activities");
       activities_valid_ = true;
