@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <mutex>
 
 #include "Iterator.hh"
@@ -254,7 +255,7 @@ protected:
   RequiredsTable requireds_;
   std::mutex requireds_lock_;
   PrevPathsTable prev_paths_;
-  std::mutex prev_paths_lock_;
+  mutable std::mutex prev_paths_lock_;
   Vector<bool> arc_delay_annotated_;
   int slew_rf_count_;
   bool have_arc_delays_;
@@ -358,10 +359,10 @@ protected:
   EdgeId out_edges_;		// Edges from this vertex.
 
   // 32 bits
-  unsigned int tag_group_index_:tag_group_index_bits; // 24
+  unsigned int tag_group_index_; // >= tag_group_index_bits = 24
   // Each bit corresponds to a different BFS queue.
-  unsigned int bfs_in_queue_:int(BfsIndex::bits); // 4
-  unsigned int slew_annotated_:slew_annotated_bits;
+  std::atomic<unsigned char> bfs_in_queue_; // >= int(BfsIndex::bits) = 4
+  unsigned char object_idx_; // >= VertexTable::idx_bits = 7
 
   // 32 bits
   unsigned int level_:Graph::vertex_level_bits;
@@ -386,7 +387,8 @@ protected:
   bool has_downstream_clk_pin_:1;
   bool crpr_path_pruning_disabled_:1;
   bool requireds_pruned_:1;
-  unsigned object_idx_:VertexTable::idx_bits;
+
+  unsigned int slew_annotated_:slew_annotated_bits;
 
 private:
   friend class Graph;
