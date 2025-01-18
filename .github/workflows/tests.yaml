@@ -1,0 +1,23 @@
+name: tests
+on: [push]
+
+jobs:
+  macos:
+    runs-on: [macos-14]
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: brew bundle
+      - run: |
+          cmake -S . -B build
+
+          cd build
+          make
+          sudo make install
+      - run: |
+          cd test
+          ./regression || {
+            [ -f results/diffs ] && cat results/diffs
+          }
