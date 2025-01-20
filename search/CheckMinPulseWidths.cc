@@ -337,7 +337,7 @@ MinPulseWidthCheck::closePath(const StaState *sta,
 		open_tag->inputDelay(),
 		open_tag->isSegmentStart(),
 		open_tag->states(),
-		false, sta);
+		sta);
   debugPrint(sta->debug(), "mpw", 3, " open  %s",
              open_tag->asString(sta));
   debugPrint(sta->debug(), "mpw", 3, " close %s",

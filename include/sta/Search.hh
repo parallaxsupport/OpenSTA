@@ -312,8 +312,7 @@ public:
 	       bool is_clk,
 	       InputDelay *input_delay,
 	       bool is_segment_start,
-	       ExceptionStateSet *states,
-	       bool own_states);
+	       const ExceptionStateSet& states);
   void reportTags() const;
   void reportClkInfos() const;
   virtual ClkInfo *findClkInfo(const ClockEdge *clk_edge,

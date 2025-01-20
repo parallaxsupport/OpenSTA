@@ -609,7 +609,7 @@ PathEnum::updatePathHeadDelays(PathEnumedSeq &paths,
                                             tag->isClock(),
                                             tag->inputDelay(),
                                             tag->isSegmentStart(),
-                                            tag->states(), false);
+                                            tag->states());
         path->setTag(updated_tag);
       }
     }

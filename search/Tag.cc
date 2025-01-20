@@ -34,8 +34,8 @@ static int
 tagStateCmp(const Tag *tag1,
 	    const Tag *tag2);
 static bool
-tagStateEqual(ExceptionStateSet *states1,
-	      ExceptionStateSet *states2);
+tagStateEqual(const ExceptionStateSet &states1,
+	      const ExceptionStateSet &states2);
 static bool
 tagStateEqualCrpr(const Tag *tag1,
 		  const Tag *tag2);
@@ -47,8 +47,7 @@ Tag::Tag(TagIndex index,
 	 bool is_clk,
 	 InputDelay *input_delay,
 	 bool is_segment_start,
-	 ExceptionStateSet *states,
-	 bool own_states,
+	 const ExceptionStateSet& states,
 	 const StaState *sta) :
   clk_info_(clk_info),
   input_delay_(input_delay),
@@ -58,14 +57,13 @@ Tag::Tag(TagIndex index,
   is_filter_(false),
   is_loop_(false),
   is_segment_start_(is_segment_start),
-  own_states_(own_states),
   rf_index_(rf_index),
   path_ap_index_(path_ap_index)
 {
   findHash();
   if (states_) {
     FilterPath *filter = sta->search()->filter();
-    for (ExceptionState *state : *states_) {
+    for (ExceptionState *state : states_) {
       ExceptionPath *exception = state->exception();
       if (exception->isLoop())
 	is_loop_ = true;
@@ -77,8 +75,6 @@ Tag::Tag(TagIndex index,
 
 Tag::~Tag()
 {
-  if (own_states_ && states_)
-    delete states_;
 }
 
 const char *
@@ -155,7 +151,7 @@ Tag::asString(bool report_index,
     result += " segment_start";
 
   if (states_) {
-    for (ExceptionState *state : *states_) {
+    for (ExceptionState *state : states_) {
       ExceptionPath *exception = state->exception();
       result += " ";
       result += exception->asString(network);
@@ -190,7 +186,7 @@ Tag::pathAnalysisPt(const StaState *sta) const
 }
 
 void
-Tag::setStates(ExceptionStateSet *states)
+Tag::setStates(const ExceptionStateSet& states)
 {
   states_ = states;
 }
@@ -225,7 +221,7 @@ Tag::genClkSrcPathClk(const StaState *sta) const
   if (clk_info_->isGenClkSrcPath()
       && states_) {
     FilterPath *filter = sta->search()->filter();
-    for (ExceptionState *state : *states_) {
+    for (ExceptionState *state : states_) {
       ExceptionPath *except = state->exception();
       if (except->isFilter()
 	  && except != filter) {
@@ -254,8 +250,7 @@ Tag::findHash()
   hashIncr(hash_, is_clk_);
   hashIncr(hash_, is_segment_start_);
   if (states_) {
-    for (ExceptionState *state : *states_)
-      hashIncr(hash_, state->hash());
+    hashIncr(hash_, states_.hash());
   }
   match_hash_ = hash_;
 
@@ -536,39 +531,9 @@ static int
 tagStateCmp(const Tag *tag1,
 	    const Tag *tag2)
 {
-  ExceptionStateSet *states1 = tag1->states();
-  ExceptionStateSet *states2 = tag2->states();
-  bool states_null1 = (states1 == nullptr || states1->empty());
-  bool states_null2 = (states2 == nullptr || states2->empty());
-  if (states_null1
-      && states_null2)
-    return 0;
-  if (states_null1
-      && !states_null2)
-    return -1;
-  if (!states_null1
-      && states_null2)
-    return 1;
-
-  size_t state_size1 = states1->size();
-  size_t state_size2 = states2->size();
-  if (state_size1 < state_size2)
-    return -1;
-  if (state_size1 > state_size2)
-    return 1;
-
-  ExceptionStateSet::Iterator state_iter1(states1);
-  ExceptionStateSet::Iterator state_iter2(states2);
-  while (state_iter1.hasNext()
-	 && state_iter2.hasNext()) {
-    ExceptionState *state1 = state_iter1.next();
-    ExceptionState *state2 = state_iter2.next();
-    if (state1 < state2)
-      return -1;
-    if (state1 > state2)
-      return 1;
-  }
-  return 0;
+  const ExceptionStateSet &states1 = tag1->states();
+  const ExceptionStateSet &states2 = tag2->states();
+  return states1.cmp(states2);
 }
 
 bool
@@ -579,32 +544,10 @@ tagStateEqual(const Tag *tag1,
 }
 
 static bool
-tagStateEqual(ExceptionStateSet *states1,
-	      ExceptionStateSet *states2)
+tagStateEqual(const ExceptionStateSet& states1,
+	      const ExceptionStateSet& states2)
 {
-  bool states_null1 = (states1 == nullptr || states1->empty());
-  bool states_null2 = (states2 == nullptr || states2->empty());
-  if (states_null1 && states_null2)
-    return true;
-  else if (states_null1 != states_null2)
-    return false;
-
-  size_t state_size1 = states1->size();
-  size_t state_size2 = states2->size();
-  if (state_size1 == state_size2) {
-    ExceptionStateSet::Iterator state_iter1(states1);
-    ExceptionStateSet::Iterator state_iter2(states2);
-    while (state_iter1.hasNext()
-	   && state_iter2.hasNext()) {
-      ExceptionState *state1 = state_iter1.next();
-      ExceptionState *state2 = state_iter2.next();
-      if (state1 != state2)
-	return false;
-    }
-    return true;
-  }
-  else
-    return false;
+  return states1 == states2;
 }
 
 // Match loop exception states only for crpr min/max paths.
@@ -612,10 +555,12 @@ static bool
 tagStateEqualCrpr(const Tag *tag1,
 		  const Tag *tag2)
 {
-  ExceptionStateSet *states1 = tag1->states();
-  ExceptionStateSet *states2 = tag2->states();
-  ExceptionStateSet::Iterator state_iter1(states1);
-  ExceptionStateSet::Iterator state_iter2(states2);
+  const ExceptionStateSet& states1 = tag1->states();
+  const ExceptionStateSet& states2 = tag2->states();
+  if (!states1.hasLoopPath() && !states2.hasLoopPath()) return true;
+  if (states1.hasLoopPath() != states2.hasLoopPath()) return false;
+  ExceptionStateSet::ConstIterator state_iter1(states1);
+  ExceptionStateSet::ConstIterator state_iter2(states2);
   ExceptionState *state1, *state2;
   do {
     state1 = nullptr;

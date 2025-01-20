@@ -993,27 +993,27 @@ public:
 			   const Clock *clk,
 			   const RiseFall *clk_rf,
 			   const MinMax *min_max,
-			   ExceptionStateSet *&states) const;
+			   ExceptionStates &states) const;
   bool exceptionFromStates(const Pin *pin,
 			   const RiseFall *rf,
 			   const Clock *clk,
 			   const RiseFall *clk_rf,
 			   const MinMax *min_max,
 			   bool include_filter,
-			   ExceptionStateSet *&states) const;
+			   ExceptionStates &states) const;
   void exceptionFromClkStates(const Pin *pin,
 			      const RiseFall *rf,
 			      const Clock *clk,
 			      const RiseFall *clk_rf,
 			      const MinMax *min_max,
-			      ExceptionStateSet *&states) const;
+			      ExceptionStates &states) const;
   void filterRegQStates(const Pin *to_pin,
 			const RiseFall *to_rf,
 			const MinMax *min_max,
-			ExceptionStateSet *&states) const;
+			ExceptionStates &states) const;
   // Return hierarchical -thru exceptions that start between
   // from_pin and to_pin.
-  ExceptionStateSet *exceptionThruStates(const Pin *from_pin,
+  ExceptionStates exceptionThruStates(const Pin *from_pin,
                                          const Pin *to_pin,
                                          const RiseFall *to_rf,
                                          const MinMax *min_max) const;
@@ -1176,12 +1176,12 @@ protected:
 			   const RiseFall *rf,
 			   const MinMax *min_max,
 			   bool include_filter,
-			   ExceptionStateSet *&states) const;
+			   ExceptionStates &states) const;
   void exceptionThruStates(const ExceptionPathSet *exceptions,
 			   const RiseFall *to_rf,
 			   const MinMax *min_max,
 			   // Return value.
-			   ExceptionStateSet *&states) const;
+			   ExceptionStates &states) const;
   void exceptionTo(const ExceptionPathSet *to_exceptions,
 		   ExceptionPathType type,
 		   const Pin *pin,
