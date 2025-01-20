@@ -92,13 +92,14 @@ gateModelRd(const LibertyCell *cell,
 	    double c1,
 	    const Pvt *pvt,
 	    bool pocv_enabled);
+template <typename Eval>
 static void
 newtonRaphson(const int max_iter,
 	      double x[],
 	      const int n,
 	      const double x_tol,
 	      // eval(state) is called to fill fvec and fjac.
-	      function<void ()> eval,
+	      const Eval &eval,
 	      // Temporaries supplied by caller.
 	      double *fvec,
 	      double **fjac,
@@ -494,9 +495,9 @@ DmpAlg::findVoCrossing(double vth,
                        double t_lower,
                        double t_upper)
 {
-  FindRootFunc vo_func = [&] (double t,
-                              double &y,
-                              double &dy) {
+  const auto vo_func = [&] (double t,
+                            double &y,
+                            double &dy) {
     double vo, vo_dt;
     Vo(t, vo, vo_dt);
     y = vo - vth;
@@ -612,9 +613,9 @@ DmpAlg::findVlCrossing(double vth,
                        double t_lower,
                        double t_upper)
 {
-  FindRootFunc vl_func = [&] (double t,
-                              double &y,
-                              double &dy) {
+  const auto vl_func = [&] (double t,
+                            double &y,
+                            double &dy) {
     double vl, vl_dt;
     Vl(t, vl, vl_dt);
     y = vl - vth;
@@ -1278,12 +1279,14 @@ DmpZeroC2::voCrossingUpperBound()
 // x_tol is percentage that all changes in x must be less than (1.0 = 100%).
 // Eval(state) is called to fill fvec and fjac (returns false if fails).
 // Return error msg on failure.
+// Eval should be callable like void(void)
+template <typename Eval>
 static void
 newtonRaphson(const int max_iter,
 	      double x[],
 	      const int size,
 	      const double x_tol,
-	      function<void ()> eval,
+	      const Eval &eval,
 	      // Temporaries supplied by caller.
 	      double *fvec,
 	      double **fjac,
@@ -1291,6 +1294,7 @@ newtonRaphson(const int max_iter,
 	      double *p,
 	      double *scale)
 {
+  static_assert(std::is_invocable_v<Eval>, "Must be a callable with no arguments");
   for (int k = 0; k < max_iter; k++) {
     eval();
     for (int i = 0; i < size; i++)
