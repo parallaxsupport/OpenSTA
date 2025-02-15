@@ -1585,9 +1585,9 @@ Search::seedClkArrival(const Pin *pin,
 				  pulse_clk_sense, insertion, latency,
 				  uncertainties, path_ap, nullptr);
   // Only false_paths -from apply to clock tree pins.
-  ExceptionStateSet *states = nullptr;
+  ExceptionStates states;
   sdc_->exceptionFromClkStates(pin,rf,clk,rf,min_max,states);
-  Tag *tag = findTag(rf, path_ap, clk_info, true, nullptr, false, states, true);
+  Tag *tag = findTag(rf, path_ap, clk_info, true, nullptr, false, states);
   Arrival arrival(clk_edge->time() + insertion);
   tag_bldr->setArrival(tag, arrival, nullptr);
 }
@@ -1619,13 +1619,13 @@ Search::clkDataTag(const Pin *pin,
  		   const MinMax *min_max,
  		   const PathAnalysisPt *path_ap)
 {
-  ExceptionStateSet *states = nullptr;
+  ExceptionStates states;
   if (sdc_->exceptionFromStates(pin, rf, clk, rf, min_max, states)) {
     bool is_propagated = (clk->isPropagated()
 			  || sdc_->isPropagatedClock(pin));
     ClkInfo *clk_info = findClkInfo(clk_edge, pin, is_propagated,
 				    insertion, path_ap);
-    return findTag(rf, path_ap, clk_info, false, nullptr, false, states, true);
+    return findTag(rf, path_ap, clk_info, false, nullptr, false, states);
   }
   else
     return nullptr;
@@ -1978,14 +1978,14 @@ Search::inputDelayTag(const Pin *pin,
     clk_uncertainties = clk->uncertainties();
   }
 
-  ExceptionStateSet *states = nullptr;
+  ExceptionStates states;
   Tag *tag = nullptr;
   if (sdc_->exceptionFromStates(pin,rf,clk,clk_rf,min_max,states)) {
     ClkInfo *clk_info = findClkInfo(clk_edge, clk_pin, is_propagated, nullptr,
 				    false, nullptr, clk_insertion, clk_latency,
 				    clk_uncertainties, path_ap, nullptr);
     tag = findTag(rf, path_ap, clk_info, false, input_delay, is_segment_start,
-		  states, true);
+		  states);
   }
 
   if (tag) {
@@ -2347,12 +2347,12 @@ Search::fromUnclkedInputTag(const Pin *pin,
 			    bool is_segment_start,
                             bool require_exception)
 {
-  ExceptionStateSet *states = nullptr;
+  ExceptionStates states;
   if (sdc_->exceptionFromStates(pin, rf, nullptr, nullptr, min_max, states)
       && (!require_exception || states)) {
     ClkInfo *clk_info = findClkInfo(nullptr, nullptr, false, 0.0, path_ap);
     return findTag(rf, path_ap, clk_info, false, nullptr,
-                   is_segment_start, states, true);
+                   is_segment_start, states);
   }
   return nullptr;
 }
@@ -2368,12 +2368,12 @@ Search::fromRegClkTag(const Pin *from_pin,
 		      const MinMax *min_max,
 		      const PathAnalysisPt *path_ap)
 {
-  ExceptionStateSet *states = nullptr;
+  ExceptionStates states;
   if (sdc_->exceptionFromStates(from_pin, from_rf, clk, clk_rf,
 				min_max, states)) {
     // Hack for filter -from reg/Q.
     sdc_->filterRegQStates(to_pin, to_rf, min_max, states);
-    return findTag(to_rf, path_ap, clk_info, false, nullptr, false, states, true);
+    return findTag(to_rf, path_ap, clk_info, false, nullptr, false, states);
   }
   else
     return nullptr;
@@ -2566,12 +2566,12 @@ Search::mutateTag(Tag *from_tag,
 		  const MinMax *min_max,
 		  const PathAnalysisPt *path_ap)
 {
-  ExceptionStateSet *new_states = nullptr;
-  ExceptionStateSet *from_states = from_tag->states();
+  ExceptionStates new_states;
+  ExceptionStateSet from_states = from_tag->states();
   if (from_states) {
     // Check for state changes in from_tag (but postpone copying state set).
     bool state_change = false;
-    for (auto state : *from_states) {
+    for (auto state : from_states) {
       ExceptionPath *exception = state->exception();
       // One edge may traverse multiple hierarchical thru pins.
       while (state->matchesNextThru(from_pin,to_pin,to_rf,min_max,network_)) {
@@ -2606,13 +2606,11 @@ Search::mutateTag(Tag *from_tag,
     }
 
     // Get the set of -thru exceptions starting at to_pin/edge.
-    new_states = sdc_->exceptionThruStates(from_pin, to_pin, to_rf, min_max);
+    new_states.takeOver(sdc_->exceptionThruStates(from_pin, to_pin, to_rf, min_max));
     if (new_states || state_change) {
       // Second pass to apply state changes and add updated existing
       // states to new states.
-      if (new_states == nullptr)
-	new_states = new ExceptionStateSet();
-      for (auto state : *from_states) {
+      for (auto state : from_states) {
 	ExceptionPath *exception = state->exception();
 	// One edge may traverse multiple hierarchical thru pins.
 	while (state->matchesNextThru(from_pin,to_pin,to_rf,min_max,network_))
@@ -2628,7 +2626,6 @@ Search::mutateTag(Tag *from_tag,
           // to_pin/edge completes a loop path.
           || (exception->isLoop()
               && state->isComplete())) {
-        delete new_states;
 	return nullptr;
       }
 
@@ -2638,18 +2635,18 @@ Search::mutateTag(Tag *from_tag,
               // Kill loop tags at register clock pins.
               || (to_is_reg_clk
                   && exception->isLoop())))
-	  new_states->insert(state);
+	  new_states.insert(state);
       }
     }
   }
   else
     // Get the set of -thru exceptions starting at to_pin/edge.
-    new_states = sdc_->exceptionThruStates(from_pin, to_pin, to_rf, min_max);
+    new_states.takeOver(sdc_->exceptionThruStates(from_pin, to_pin, to_rf, min_max));
 
   if (new_states)
     return findTag(to_rf, path_ap, to_clk_info, to_is_clk,
 		   from_tag->inputDelay(), to_is_segment_start,
-		   new_states, true);
+		   new_states);
   else {
     // No state change.
     if (to_clk_info == from_clk_info
@@ -2661,7 +2658,7 @@ Search::mutateTag(Tag *from_tag,
     else
       return findTag(to_rf, path_ap, to_clk_info, to_is_clk,
 		     to_input_delay, to_is_segment_start,
-		     from_states, false);
+		     from_states);
   }
 }
 
@@ -2894,16 +2891,13 @@ Search::findTag(const RiseFall *rf,
 		bool is_clk,
 		InputDelay *input_delay,
 		bool is_segment_start,
-		ExceptionStateSet *states,
-		bool own_states)
+		const ExceptionStateSet& states)
 {
   Tag probe(0, rf->index(), path_ap->index(), clk_info, is_clk, input_delay,
-	    is_segment_start, states, false, this);
+	    is_segment_start, states, this);
   LockGuard lock(tag_lock_);
   Tag *tag = tag_set_->findKey(&probe);
   if (tag == nullptr) {
-    ExceptionStateSet *new_states = !own_states && states
-      ? new ExceptionStateSet(*states) : states;
     TagIndex tag_index;
     if (tag_free_indices_.empty())
       tag_index = tag_next_++;
@@ -2913,8 +2907,7 @@ Search::findTag(const RiseFall *rf,
     }
     tag = new Tag(tag_index, rf->index(), path_ap->index(),
                   clk_info, is_clk, input_delay, is_segment_start,
-                  new_states, true, this);
-    own_states = false;
+                  states, this);
     // Make sure tag can be indexed in tags_ before it is visible to
     // other threads via tag_set_.
     tags_[tag_index] = tag;
@@ -2934,8 +2927,6 @@ Search::findTag(const RiseFall *rf,
     if (tag_next_ == tag_index_max)
       report_->critical(1511, "max tag index exceeded");
   }
-  if (own_states)
-    delete states;
   return tag;
 }
 
@@ -3631,9 +3622,9 @@ Search::matchesFilter(Path *path,
     // -from pins|inst
     // -thru
     // Path has to be tagged by traversing the filter exception points.
-    ExceptionStateSet *states = path->tag(this)->states();
+    const ExceptionStateSet& states = path->tag(this)->states();
     if (states) {
-      for (auto state : *states) {
+      for (auto state : states) {
 	if (state->exception() == filter_
 	    && state->nextThru() == nullptr
 	    && matchesFilterTo(path, to_clk_edge))
@@ -3692,9 +3683,9 @@ Search::exceptionTo(ExceptionPathType type,
   // Find the highest priority exception carried by the path's tag.
   int hi_priority = -1;
   ExceptionPath *hi_priority_exception = nullptr;
-  const ExceptionStateSet *states = path->tag(this)->states();
+  const ExceptionStateSet& states = path->tag(this)->states();
   if (states) {
-    for (auto state : *states) {
+    for (auto state : states) {
       ExceptionPath *exception = state->exception();
       int priority = exception->priority(min_max);
       if ((type == ExceptionPathType::any

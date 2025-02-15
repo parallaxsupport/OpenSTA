@@ -372,7 +372,7 @@ Latches::latchOutArrival(const Path *data_path,
 				    path_ap,
 				    crpr_clk_path);
 	     RiseFall *q_rf = d_q_arc->toEdge()->asRiseFall();
-	     ExceptionStateSet *states = nullptr;
+	     ExceptionStates states;
 	     // Latch data pin is a valid exception -from pin.
 	     if (sdc_->exceptionFromStates(data_path->pin(this),
 						   data_path->transition(this),
@@ -385,7 +385,7 @@ Latches::latchOutArrival(const Path *data_path,
 						      en_clk_edge->transition(),
 						      MinMax::max(), false, states))
 	       q_tag = search_->findTag(q_rf, path_ap, q_clk_info, false,
-					nullptr, false, states, true);
+					nullptr, false, states);
 	   }
 	   return;
 	 }

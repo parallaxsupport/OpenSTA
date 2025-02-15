@@ -138,6 +138,7 @@ set(STA_SOURCE
   power/SaifReader.cc
   power/VcdParse.cc
   
+  sdc/SdcClass.cc
   sdc/Clock.cc
   sdc/ClockGatingCheck.cc
   sdc/ClockGroups.cc

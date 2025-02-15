@@ -428,16 +428,14 @@ PrevPathVisitor::visitFromToPath(const Pin *,
 Tag *
 PrevPathVisitor::unfilteredTag(const Tag *tag) const
 {
-  ExceptionStateSet *unfiltered_states = nullptr;
-  const ExceptionStateSet *states = tag->states();
-  ExceptionStateSet::ConstIterator state_iter(states);
-  while (state_iter.hasNext()) {
-    ExceptionState *state = state_iter.next();
+  const ExceptionStateSet& states = tag->states();
+  if (!states.hasFilterPath())
+    return (Tag*)tag;
+  ExceptionStates unfiltered_states;
+  for (ExceptionState *state : states) {
     ExceptionPath *except = state->exception();
     if (!except->isFilter()) {
-      if (unfiltered_states == nullptr)
-	unfiltered_states = new ExceptionStateSet();
-      unfiltered_states->insert(state);
+      unfiltered_states.insert(state);
     }
   }
   return search_->findTag(tag->transition(),
@@ -446,7 +444,7 @@ PrevPathVisitor::unfilteredTag(const Tag *tag) const
                           tag->isClock(),
                           tag->inputDelay(),
                           tag->isSegmentStart(),
-                          unfiltered_states, true);
+                          unfiltered_states);
 }
 
 ////////////////////////////////////////////////////////////////

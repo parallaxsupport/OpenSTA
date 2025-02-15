@@ -24,6 +24,7 @@
 
 #pragma once
 
+#include <unordered_set>
 #include "Map.hh"
 #include "Set.hh"
 #include "Vector.hh"
@@ -120,7 +121,83 @@ public:
 };
 
 class ExceptionPath;
-typedef Set<ExceptionState*, ExceptionStateLess> ExceptionStateSet;
+class ExceptionStates {
+public:
+   typedef Set<ExceptionState*, ExceptionStateLess> Super;
+   ExceptionStates() : holder_(nullptr), hasLoopPath_(false), hasFilterPath_(false) {}
+   ExceptionStates(ExceptionStates&& o)  noexcept : holder_(o.holder_), hasLoopPath_(o.hasLoopPath_), hasFilterPath_(o.hasFilterPath_) {
+    o.holder_ = nullptr;
+   }
+   ExceptionStates(const ExceptionStates& o) = delete;
+   ExceptionStates& operator=(const ExceptionStates & o) = delete;
+   ~ExceptionStates() { delete holder_; }
+   explicit operator bool () const { return holder_; }
+   bool hasLoopPath() const { return hasLoopPath_; }
+   bool hasFilterPath() const { return hasFilterPath_; }
+
+   void insert(ExceptionState* state);
+   void clear();
+
+   void to(Super& s) { if (holder_) s.swap(*holder_); }
+   void takeOver(ExceptionStates&& o) {
+    clear();
+    holder_ = o.holder_;
+    hasLoopPath_ = o.hasLoopPath_;
+    hasFilterPath_ = o.hasFilterPath_;
+    o.holder_ = nullptr;
+   }
+private:
+   Super         *holder_;
+   bool           hasLoopPath_;
+   bool           hasFilterPath_;
+};
+
+class ExceptionStateSet {
+  struct Impl : public Set<ExceptionState*, ExceptionStateLess> {
+	typedef Set<ExceptionState*, ExceptionStateLess> Super;
+	Impl(ExceptionStates & tmp) : Super(), hash_(hash_init_value), refcount(0), hasLoopPath_(tmp.hasLoopPath()), hasFilterPath_(tmp.hasFilterPath()) { tmp.to(super()); rehash(); }
+	size_t hash() const { return hash_; }
+    bool operator == (Impl const & i) const;
+
+    size_t   hash_;
+    unsigned refcount      :30;
+	bool     hasLoopPath_  :1;
+	bool     hasFilterPath_:1;
+  protected:
+	Super& super() { return *this; }
+	void rehash();
+  };
+  Impl* impl;
+public:
+  ExceptionStateSet(ExceptionStates & tmp) : impl(create(tmp)) { incr(impl); }
+  ExceptionStateSet(const ExceptionStateSet & o) : impl(o.impl) { incr(impl); }
+  ExceptionStateSet& operator=(const ExceptionStateSet & o) {
+    Impl* i = o.impl; incr(i); decr(impl); impl = i; return *this;
+  }
+  explicit operator bool () const { return impl; }
+  bool operator==(const ExceptionStateSet& o) const;
+  bool empty() const { return !impl; }
+  size_t size() const { return impl ? impl->size() : 0; }
+  struct ConstIterator : public Impl::Super::ConstIterator {
+    ConstIterator(const ExceptionStateSet& set) : Impl::Super::ConstIterator(set.impl) {}
+  };
+  Impl::Super::const_iterator begin() const { return impl->begin(); }
+  Impl::Super::const_iterator end() const { return impl->end(); }
+  int cmp(ExceptionStateSet const & o) const;
+  bool hasLoopPath()   const { return impl && impl->hasLoopPath_; }
+  bool hasFilterPath() const { return impl && impl->hasFilterPath_; }
+  size_t hash() const { return impl ? impl->hash() : 0; }
+private:
+  void incr(Impl* i) { if (i) ++i->refcount; }
+  void decr(Impl* i) { if (i && --i->refcount == 0) { mgr.erase(i); delete i; } }
+  Impl* create(ExceptionStates & tmp);
+
+  struct ImplHash { size_t operator()(Impl* i) const { return i ? i->hash() : 0; } };
+  struct ImplEqual { bool operator()(Impl* a, Impl* b) const { return a == b || (a && b && *a == *b); } };
+  typedef std::unordered_set<Impl*,ImplHash, ImplEqual> Manager;
+  static Impl* unique(Impl* i);
+  static thread_local Manager mgr;
+};
 
 enum class CrprMode { same_pin, same_transition };
 

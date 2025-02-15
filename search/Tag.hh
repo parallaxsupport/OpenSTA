@@ -58,8 +58,7 @@ public:
       bool is_clk,
       InputDelay *input_delay,
       bool is_segment_start,
-      ExceptionStateSet *states,
-      bool own_states,
+      const ExceptionStateSet& states,
       const StaState *sta);
   ~Tag();
   const char *asString(const StaState *sta) const;
@@ -76,8 +75,8 @@ public:
   PathAnalysisPt *pathAnalysisPt(const StaState *sta) const;
   PathAPIndex pathAPIndex() const { return path_ap_index_; }
   TagIndex index() const { return index_; }
-  ExceptionStateSet *states() const { return states_; }
-  void setStates(ExceptionStateSet *states);
+  const ExceptionStateSet& states() const { return states_; }
+  void setStates(const ExceptionStateSet& states);
   bool isGenClkSrcPath() const;
   const Clock *genClkSrcPathClk(const StaState *sta) const;
   // Input delay at search startpoint (not propagated).
@@ -94,7 +93,7 @@ protected:
 private:
   ClkInfo *clk_info_;
   InputDelay *input_delay_;
-  ExceptionStateSet *states_;
+  ExceptionStateSet states_;
   size_t hash_;
   size_t match_hash_;
   TagIndex index_;

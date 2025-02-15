@@ -711,14 +711,14 @@ Genclks::makeTag(const Clock *gclk,
   // from the get go.
   if (master_pin == gclk->srcPin())
     state = state->nextState();
-  ExceptionStateSet *states = new ExceptionStateSet();
-  states->insert(state);
+  ExceptionStates states;
+  states.insert(state);
   ClkInfo *clk_info = search_->findClkInfo(master_clk->edge(master_rf),
 					   master_pin, true, nullptr, true,
 					   nullptr, 0.0, 0.0, nullptr,
 					   path_ap, nullptr);
   return search_->findTag(master_rf, path_ap, clk_info, false, nullptr, false,
-			  states, true);
+			  states);
 }
 
 class GenClkArrivalSearchPred : public EvalPred
@@ -956,19 +956,16 @@ Genclks::matchesSrcFilter(Path *path,
 			  const Clock *gclk) const
 {
   Tag *tag = path->tag(this);
-  const ExceptionStateSet *states = tag->states();
-  if (tag->isGenClkSrcPath()
-      && states) {
-    ExceptionStateSet::ConstIterator state_iter(states);
-    while (state_iter.hasNext()) {
-      ExceptionState *state = state_iter.next();
-      ExceptionPath *except = state->exception();
-      if (except->isFilter()
-	  && state->nextThru() == nullptr
-	  && except->to()
-	  && except->to()->matches(gclk))
-	return true;
-    }
+  const ExceptionStateSet& states = tag->states();
+  if (!tag->isGenClkSrcPath() || !states || !states.hasFilterPath()) 
+    return false;
+  for (ExceptionState* state : states) {
+    ExceptionPath *except = state->exception();
+    if (except->isFilter()
+        && state->nextThru() == nullptr
+        && except->to()
+        && except->to()->matches(gclk))
+      return true;
   }
   return false;
 }
