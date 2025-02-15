@@ -1248,20 +1248,30 @@ Vertex::setHasDownstreamClkPin(bool has_clk_pin)
   has_downstream_clk_pin_ = has_clk_pin;
 }
 
+#define IN_QUEUE(mask, index) (mask & (1 << unsigned(index)))
+#define SET_IN_QUEUE(mask, index) ((mask) |= (1 << unsigned(index)))
+#define CLEAR_IN_QUEUE(mask, index) ((mask) &= ~(1 << unsigned(index)))
+
 bool
 Vertex::bfsInQueue(BfsIndex index) const
 {
-  return (bfs_in_queue_ >> unsigned(index)) & 1;
+  return IN_QUEUE(bfs_in_queue_, index);
 }
 
 void
 Vertex::setBfsInQueue(BfsIndex index,
 		      bool value)
 {
-  if (value)
-    bfs_in_queue_ |= 1 << int(index);
-  else
-    bfs_in_queue_ &= ~(1 << int(index));
+  unsigned char expected = bfs_in_queue_;
+  unsigned char desired;
+  do {
+    if ((value && IN_QUEUE(expected, index)) || (!value && !IN_QUEUE(expected, index))) {
+      return;
+    }
+    desired = expected;
+    SET_IN_QUEUE(value ? desired : expected, index);
+    CLEAR_IN_QUEUE(value ? expected : desired, index);
+  } while (!bfs_in_queue_.compare_exchange_weak(expected, desired));
 }
 
 ////////////////////////////////////////////////////////////////

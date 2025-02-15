@@ -368,7 +368,7 @@ protected:
   bool has_downstream_clk_pin_:1;
   bool crpr_path_pruning_disabled_:1;
   bool requireds_pruned_:1;
-  unsigned object_idx_:VertexTable::idx_bits; // 7
+  unsigned char object_idx_; // >= VertexTable::idx_bits = 7
 
 private:
   friend class Graph;
