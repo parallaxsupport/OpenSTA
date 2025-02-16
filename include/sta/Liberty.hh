@@ -26,6 +26,7 @@
 
 #include <mutex>
 #include <atomic>
+#include <optional>
 
 #include "MinMax.hh"
 #include "RiseFallMinMax.hh"
@@ -474,6 +475,7 @@ public:
   void leakagePower(// Return values.
 		    float &leakage,
 		    bool &exists) const;
+  std::optional<float> leakagePower() const;
   bool leakagePowerExists() const { return leakage_power_exists_; }
 
   // Register, Latch or Statetable.

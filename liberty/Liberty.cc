@@ -1307,6 +1307,16 @@ LibertyCell::leakagePower(// Return values.
   exists = leakage_power_exists_;
 }
 
+std::optional<float>
+LibertyCell::leakagePower() const
+{
+  std::optional<float> leakage;
+  if (leakage_power_exists_) {
+    leakage = leakage_power_;
+  }
+  return leakage;
+}
+
 void
 LibertyCell::finish(bool infer_latches,
 		    Report *report,
